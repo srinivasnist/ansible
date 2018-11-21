@@ -1,0 +1,47 @@
+---
+  - name: Provision an EC2 Instance
+    hosts: local
+    connection: local
+    gather_facts: False
+    tasks:
+      - name: Create a security group
+        local_action: 
+          module: ec2_group
+          name: AWS_Security_Group
+          description: Security Group for webserver Servers
+          region: us-west-1
+          rules:
+            - proto: tcp
+              from_port: 22
+              to_port: 22
+              cidr_ip: 0.0.0.0/0
+            - proto: tcp
+              from_port: 80
+              to_port: 80
+              cidr_ip: 0.0.0.0/0
+          rules_egress:
+            - proto: all
+              cidr_ip: 0.0.0.0/0
+        register: firewall
+
+      - name: Create an EC2 instance
+        ec2:
+          key_name: id_rsa
+          region: us-west-1
+          group_id: "{{ firewall.group_id }}"
+          instance_type: t2.micro
+          image: ami-0ad16744583f21877
+          user_data: "{{ lookup('file', 'mysql.sh') }}"
+          wait: yes
+          volumes:
+            - device_name: /dev/sda1
+              volume_type: gp2
+              volume_size: 10
+              delete_on_termination: true
+          exact_count: 1
+          count_tag:
+             Name: aws-demo
+             Owner: 709835907131
+          instance_tags:
+             Name: aws-demo
+        register: ec2
